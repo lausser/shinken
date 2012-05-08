@@ -301,6 +301,9 @@ class LiveStatusQuery(object):
         cs = LiveStatusConstraints(filter_func, without_filter, self.authuser)
 
         try:
+            self.hints = {
+                'authuser': cs.authuser,
+            }
             # Remember the number of stats filters. We need these numbers as columns later.
             # But we need to ask now, because get_live_data() will empty the stack
             num_stats_filters = self.stats_filter_stack.qsize()
@@ -385,7 +388,7 @@ class LiveStatusQuery(object):
                 yield val
             return
 
-        items = getattr(self.datamgr.rg, self.table).__itersorted__(cs.authuser)
+        items = getattr(self.datamgr.rg, self.table).__itersorted__(self.hints)
         if not cs.without_filter:
             items = gen_filtered(items, cs.filter_func)
         if self.limit:
@@ -409,7 +412,7 @@ class LiveStatusQuery(object):
 
 
     def get_filtered_livedata(self, cs):
-        items = getattr(self.datamgr.rg, self.table).__itersorted__(cs.authuser)
+        items = getattr(self.datamgr.rg, self.table).__itersorted__(self.hints)
         if cs.without_filter:
             return [x for x in items]
         else:
@@ -467,23 +470,23 @@ class LiveStatusQuery(object):
 
     def get_hostsbygroup_livedata(self, cs):
         sorter = lambda k: k.hostgroup.hostgroup_name
-        return self.get_group_livedata(cs, self.datamgr.rg.hosts.__itersorted__(cs.authuser), 'hostgroups', 'hostgroup', sorter)
+        return self.get_group_livedata(cs, self.datamgr.rg.hosts.__itersorted__(self.hints), 'hostgroups', 'hostgroup', sorter)
 
 
     def get_servicesbygroup_livedata(self, cs):
         sorter = lambda k: k.servicegroup.servicegroup_name
-        return self.get_group_livedata(cs, self.datamgr.rg.services.__itersorted__(cs.authuser), 'servicegroups', 'servicegroup', sorter)
+        return self.get_group_livedata(cs, self.datamgr.rg.services.__itersorted__(self.hints), 'servicegroups', 'servicegroup', sorter)
     
 
     def get_problem_livedata(self, cs):
         # We will crate a problems list first with all problems and source in it
         # TODO : create with filter
         problems = []
-        for h in self.datamgr.rg.hosts.__itersorted__():
+        for h in self.datamgr.rg.hosts.__itersorted__(self.hints):
             if h.is_problem:
                 pb = Problem(h, h.impacts)
                 problems.append(pb)
-        for s in self.datamgr.rg.services.__itersorted__():
+        for s in self.datamgr.rg.services.__itersorted__(self.hints):
             if s.is_problem:
                 pb = Problem(s, s.impacts)
                 problems.append(pb)
@@ -532,7 +535,7 @@ class LiveStatusQuery(object):
 
 
     def get_servicesbyhostgroup_livedata(self, cs):
-        objs = self.datamgr.rg.services.__itersorted__(cs.authuser)
+        objs = self.datamgr.rg.services.__itersorted__(self.hints)
         return sorted([x for x in (
             setattr(svchgrp[0], 'hostgroup', svchgrp[1]) or svchgrp[0] for svchgrp in (
                 (copy.copy(inner_list0[0]), item0) for inner_list0 in ( #2 service clone and a hostgroup

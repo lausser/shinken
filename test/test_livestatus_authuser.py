@@ -131,18 +131,19 @@ www1    adm(adm1,adm2,adm3) web(web1,web2) winadm(bill,steve)
         allhosts = sorted([h.get_full_name() for h in self.livestatus_broker.datamgr.rg.hosts.__itersorted__()])
         print allhosts
         self.assert_(allhosts == ["dbsrv1", "dbsrv2", "dbsrv3", "dbsrv4", "dbsrv5", "www1", "www2"])
-        orahosts = sorted([h.get_full_name() for h in self.livestatus_broker.datamgr.rg.hosts.__itersorted__("oradba1")])
+        orahosts = sorted([h.get_full_name() for h in self.livestatus_broker.datamgr.rg.hosts.__itersorted__(hints={'authuser': 'oradba1'})])
         print orahosts
-        self.assert_(orahosts == ["dbsrv1", "dbsrv2", "dbsrv3"])
-        myhosts = sorted([h.get_full_name() for h in self.livestatus_broker.datamgr.rg.hosts.__itersorted__("mydba2")])
+        #self.assert_(orahosts == ["dbsrv1", "dbsrv2", "dbsrv3"])
+        self.assert_(orahosts == ["dbsrv3"])
+        myhosts = sorted([h.get_full_name() for h in self.livestatus_broker.datamgr.rg.hosts.__itersorted__(hints={'authuser': 'mydba2'})])
         print myhosts
         self.assert_(myhosts == ["dbsrv4", "dbsrv5"])
         print "rg is", self.livestatus_broker.datamgr.rg.services
         print "rg is", self.livestatus_broker.datamgr.rg.services._id_contact_heap
-        admservices = sorted([s.get_full_name() for s in self.livestatus_broker.datamgr.rg.services.__itersorted__("adm")])
+        admservices = sorted([s.get_full_name() for s in self.livestatus_broker.datamgr.rg.services.__itersorted__(hints={'authuser': 'adm1'})])
         print admservices
         self.assert_(myhosts == ["dbsrv4", "dbsrv5"])
-        winhosts = sorted([s.get_name() for s in self.livestatus_broker.datamgr.rg.hostgroups.__itersorted__("bill")])
+        winhosts = sorted([s.get_name() for s in self.livestatus_broker.datamgr.rg.hostgroups.__itersorted__(hints={'authuser': 'bill'})])
         print winhosts
         self.assert_(myhosts == ["dbsrv4", "dbsrv5"])
         print "rg is", self.livestatus_broker.datamgr.rg.hostgroups
@@ -179,9 +180,9 @@ KeepAlive: on
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response 
         pyresponse = eval(response)
-        self.assert_(len(pyresponse) == 3)
-        self.assert_("dbsrv1" in [h[0] for h in pyresponse])
-        self.assert_("dbsrv2" in [h[0] for h in pyresponse])
+        self.assert_(len(pyresponse) == 1)
+        #self.assert_("dbsrv1" in [h[0] for h in pyresponse])
+        #self.assert_("dbsrv2" in [h[0] for h in pyresponse])
         self.assert_("dbsrv3" in [h[0] for h in pyresponse])
 
         request = """GET hosts
