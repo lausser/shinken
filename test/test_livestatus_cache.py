@@ -31,6 +31,7 @@ class TestConfigBig(TestConfig):
         self.init_livestatus()
         self.livestatus_broker.query_cache.enabled = True
         print "Cleaning old broks?"
+        self.sched.conf.skip_initial_broks = False
         self.sched.fill_initial_broks()
         self.update_broker()
         print "************* Overall Setup:", time.time() - start_setUp
