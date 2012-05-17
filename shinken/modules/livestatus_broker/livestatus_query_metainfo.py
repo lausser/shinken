@@ -25,7 +25,7 @@
 
 import re
 import time
-from livestatus_query_cache import Counter
+from counter import Counter
 from livestatus_stack import LiveStatusStack
 
 
@@ -79,7 +79,7 @@ HINT_SINGLE_HOST = 1
 HINT_SINGLE_HOST_SERVICES = 2
 HINT_SINGLE_SERVICE = 3
 
-class LiveStatusQuerySupplementFilterStack(LiveStatusStack):
+class LiveStatusQueryMetainfoFilterStack(LiveStatusStack):
 
     def __init__(self, *args, **kw):
         self.type = 'sql'
@@ -116,7 +116,7 @@ class LiveStatusQuerySupplementFilterStack(LiveStatusStack):
             return self.get()
 
 
-class LiveStatusQuerySupplement(object):
+class LiveStatusQueryMetainfo(object):
     """
     This class implements a more "machine-readable" form of a livestatus query.
     The lines of a query text are split up in a list of tuples,
@@ -132,7 +132,7 @@ class LiveStatusQuerySupplement(object):
             'target': HINT_NONE,
         }
         self.keyword_counter = Counter()
-        self.supplement_filter_stack = LiveStatusQuerySupplementFilterStack()
+        self.metainfo_filter_stack = LiveStatusQueryMetainfoFilterStack()
         self.structure(data)
         self.key = hash(str(self.structured_data))
         self.is_stats = self.keyword_counter['Stats'] > 0
@@ -152,16 +152,16 @@ class LiveStatusQuerySupplement(object):
         return text
 
     def add_filter(self, operator, attribute, reference):
-        self.supplement_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
+        self.metainfo_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
 
     def add_filter_and(self, andnum):
-        self.supplement_filter_stack.and_elements(andnum)
+        self.metainfo_filter_stack.and_elements(andnum)
 
     def add_filter_or(self, ornum):
-        self.supplement_filter_stack.or_elements(ornum)
+        self.metainfo_filter_stack.or_elements(ornum)
 
     def add_filter_not(self):
-        self.supplement_filter_stack.not_elements()
+        self.metainfo_filter_stack.not_elements()
 
     def make_text_filter(self, operator, attribute, reference):
         return '%s%s%s' % (attribute, operator, reference)
@@ -210,20 +210,20 @@ class LiveStatusQuerySupplement(object):
                 except:
                     _, attribute, operator = re.split(r"[\s]+", line, 2)
                     reference = ''
-                self.supplement_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
+                self.metainfo_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
                 if reference != '_REALNAME':
                     self.structured_data.append((keyword, attribute, operator, reference))
             elif keyword == 'And':
                 _, andnum = self.split_option(line)
                 self.structured_data.append((keyword, andnum))
-                self.supplement_filter_stack.and_elements(andnum)
+                self.metainfo_filter_stack.and_elements(andnum)
             elif keyword == 'Or':
                 _, ornum = self.split_option(line)
                 self.structured_data.append((keyword, ornum))
-                self.supplement_filter_stack.or_elements(ornum)
+                self.metainfo_filter_stack.or_elements(ornum)
             elif keyword == 'Negate':
                 self.structured_data.append((keyword, ))
-                self.supplement_filter_stack.not_elements()
+                self.metainfo_filter_stack.not_elements()
             elif keyword == 'StatsGroupBy':
                 _, columns = self.split_option_with_columns(line)
                 self.structured_data.append((keyword, columns))
@@ -257,8 +257,8 @@ class LiveStatusQuerySupplement(object):
                 print "Received a line of input which i can't handle : '%s'" % line
                 self.structured_data.append((keyword, 'Received a line of input which i can\'t handle: %s' % line))
             self.keyword_counter[keyword] += 1
-        self.supplement_filter_stack.and_elements(self.supplement_filter_stack.qsize())
-        self.flat_filter = self.supplement_filter_stack.get_stack()
+        self.metainfo_filter_stack.and_elements(self.metainfo_filter_stack.qsize())
+        self.flat_filter = self.metainfo_filter_stack.get_stack()
         print "SUPPLEMENT FLATFILTER", self.flat_filter
 
     def split_command(self, line, splits=1):
