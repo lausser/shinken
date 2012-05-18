@@ -266,7 +266,7 @@ class LiveStatusQuery(object):
             return []
 
         # Ask the cache if this request was already answered under the same
-        # circumstances.
+        # circumstances. (And f not, whether this query is cacheable at all)
         cacheable, cache_hit, cached_response = self.query_cache.get_cached_query(self.metainfo)
         if cache_hit:
             self.columns = cached_response['columns']
@@ -386,7 +386,10 @@ class LiveStatusQuery(object):
                 yield val
             return
 
+        # Get an iterator which will return the list of elements belonging to a specific table.
+        # Depending on the hints in the query's metainfo, the list can be only a subset.
         items = getattr(self.datamgr.rg, self.table).__itersorted__(self.metainfo.query_hints)
+        # Pass the elements through more generators if necessary.
         if not cs.without_filter:
             items = gen_filtered(items, cs.filter_func)
         if self.limit:

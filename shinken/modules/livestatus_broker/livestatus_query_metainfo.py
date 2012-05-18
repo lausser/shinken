@@ -74,10 +74,17 @@ CACHE_HOST_STATS = 4
 CACHE_SERVICE_STATS = 5
 CACHE_IRREVERSIBLE_HISTORY = 6
 
+"""
+Sometimes it is possible to see from the list of filters that this query's purpose
+s to find one specific host or service (ot the services of one specific host).
+The service is therefore tagged with a hint type, helping an upper layer to limit
+the number of objects to process.
+"""
 HINT_NONE = 0
 HINT_SINGLE_HOST = 1
 HINT_SINGLE_HOST_SERVICES = 2
 HINT_SINGLE_SERVICE = 3
+
 
 class LiveStatusQueryMetainfoFilterStack(LiveStatusStack):
     """

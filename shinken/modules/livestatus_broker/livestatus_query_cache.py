@@ -133,7 +133,7 @@ class LiveStatusQueryCache(object):
         """
         if not self.enabled:
             return (False, False, [])
-        print "I SEARCH THE CACHE FOR", query.cache_category, query.key, query.data
+        #print "I SEARCH THE CACHE FOR", query.cache_category, query.key, query.data
         try:
             return (query.cache_category != CACHE_IMPOSSIBLE, True, self.categories[query.cache_category].get(query.key))
         except LFUCacheMiss:

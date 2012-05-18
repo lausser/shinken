@@ -49,8 +49,6 @@ def itersorted(self, hints=None):
             # This host (or authuser) is unknown
             pass
     elif 'target' in hints and hints['target'] == HINT_SINGLE_HOST_SERVICES:
-        print "I WANT A SINGLE SERV"
-        raise
         try:
             service_ids = self._id_by_host_name_heap[hints['host_name']]
             if 'authuser' in hints:
