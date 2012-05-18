@@ -25,7 +25,7 @@
 
 import re
 import time
-from livestatus_query_cache import Counter
+from counter import Counter
 from livestatus_stack import LiveStatusStack
 
 
@@ -79,10 +79,14 @@ HINT_SINGLE_HOST = 1
 HINT_SINGLE_HOST_SERVICES = 2
 HINT_SINGLE_SERVICE = 3
 
-class LiveStatusQuerySupplementFilterStack(LiveStatusStack):
-
+class LiveStatusQueryMetainfoFilterStack(LiveStatusStack):
+    """
+    This is a filterstack which produces a text representation of 
+    a and/or-filter-tree, similar to sql.
+    It can be used some time for text analysis.
+    """
     def __init__(self, *args, **kw):
-        self.type = 'sql'
+        self.type = 'text'
         self.__class__.__bases__[0].__init__(self, *args, **kw)
 
     def not_elements(self):
@@ -116,7 +120,7 @@ class LiveStatusQuerySupplementFilterStack(LiveStatusStack):
             return self.get()
 
 
-class LiveStatusQuerySupplement(object):
+class LiveStatusQueryMetainfo(object):
     """
     This class implements a more "machine-readable" form of a livestatus query.
     The lines of a query text are split up in a list of tuples,
@@ -132,7 +136,7 @@ class LiveStatusQuerySupplement(object):
             'target': HINT_NONE,
         }
         self.keyword_counter = Counter()
-        self.supplement_filter_stack = LiveStatusQuerySupplementFilterStack()
+        self.metainfo_filter_stack = LiveStatusQueryMetainfoFilterStack()
         self.structure(data)
         self.key = hash(str(self.structured_data))
         self.is_stats = self.keyword_counter['Stats'] > 0
@@ -152,16 +156,16 @@ class LiveStatusQuerySupplement(object):
         return text
 
     def add_filter(self, operator, attribute, reference):
-        self.supplement_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
+        self.metainfo_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
 
     def add_filter_and(self, andnum):
-        self.supplement_filter_stack.and_elements(andnum)
+        self.metainfo_filter_stack.and_elements(andnum)
 
     def add_filter_or(self, ornum):
-        self.supplement_filter_stack.or_elements(ornum)
+        self.metainfo_filter_stack.or_elements(ornum)
 
     def add_filter_not(self):
-        self.supplement_filter_stack.not_elements()
+        self.metainfo_filter_stack.not_elements()
 
     def make_text_filter(self, operator, attribute, reference):
         return '%s%s%s' % (attribute, operator, reference)
@@ -210,20 +214,20 @@ class LiveStatusQuerySupplement(object):
                 except:
                     _, attribute, operator = re.split(r"[\s]+", line, 2)
                     reference = ''
-                self.supplement_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
+                self.metainfo_filter_stack.put_stack(self.make_text_filter(operator, attribute, reference))
                 if reference != '_REALNAME':
                     self.structured_data.append((keyword, attribute, operator, reference))
             elif keyword == 'And':
                 _, andnum = self.split_option(line)
                 self.structured_data.append((keyword, andnum))
-                self.supplement_filter_stack.and_elements(andnum)
+                self.metainfo_filter_stack.and_elements(andnum)
             elif keyword == 'Or':
                 _, ornum = self.split_option(line)
                 self.structured_data.append((keyword, ornum))
-                self.supplement_filter_stack.or_elements(ornum)
+                self.metainfo_filter_stack.or_elements(ornum)
             elif keyword == 'Negate':
                 self.structured_data.append((keyword, ))
-                self.supplement_filter_stack.not_elements()
+                self.metainfo_filter_stack.not_elements()
             elif keyword == 'StatsGroupBy':
                 _, columns = self.split_option_with_columns(line)
                 self.structured_data.append((keyword, columns))
@@ -257,9 +261,8 @@ class LiveStatusQuerySupplement(object):
                 print "Received a line of input which i can't handle : '%s'" % line
                 self.structured_data.append((keyword, 'Received a line of input which i can\'t handle: %s' % line))
             self.keyword_counter[keyword] += 1
-        self.supplement_filter_stack.and_elements(self.supplement_filter_stack.qsize())
-        self.flat_filter = self.supplement_filter_stack.get_stack()
-        print "SUPPLEMENT FLATFILTER", self.flat_filter
+        self.metainfo_filter_stack.and_elements(self.metainfo_filter_stack.qsize())
+        self.flat_filter = self.metainfo_filter_stack.get_stack()
 
     def split_command(self, line, splits=1):
         """Create a list from the words of a line"""
@@ -331,6 +334,8 @@ class LiveStatusQuerySupplement(object):
             pass
             print "i cannot cache this", self
 
+        # Initial implementation only respects the = operator (~ may be an option in the future)
+        eq_filters = sorted([str(f[1]) for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
         if [f for f in self.structured_data if f[0] == 'Negate']:
             # HANDS OFF!!!!
             # This might be something like:
@@ -339,21 +344,21 @@ class LiveStatusQuerySupplement(object):
             # absolutely wrong results.
             pass
         elif self.table == 'hosts':
-            # Do we have exactly 1 Filter, which is 'name'?
-            eq_filters = sorted([f[1] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
-            if eq_filters == ['name']:
+            # Do we have exactly 1 Filter, which is 'name' or 'host_name'?
+            if eq_filters == ['name'] or eq_filters == ['host_name']:
                 self.query_hints['target'] = HINT_SINGLE_HOST
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')][0]
+                # this helps: thruk_host_detail, thruk_host_status_detail, thruk_service_detail, nagvis_host_icon
         elif self.table == 'services':
-            eq_filters = sorted([f[1] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
             if eq_filters == ['host_name']:
                 # Do we have exactly 1 Filter, which is 'name'?
                 # In this case, we want the services of this single host
                 self.query_hints['target'] = HINT_SINGLE_HOST_SERVICES
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')][0]
-            elif eq_filters == ['description', 'host_name']:
+                # this helps: multisite_host_detail
+            elif eq_filters == ['description', 'host_name'] or eq_filters == ['service_description', 'host_name']:
                 # We want one specific service
                 self.query_hints['target'] = HINT_SINGLE_SERVICE
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[1] == 'host_name' and f[2] == '=')][0]
                 self.query_hints['service_description'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[1] == 'description' and f[2] == '=')][0]
-            
+                # this helps: multisite_service_detail, thruk_service_detail, nagvis_service_icon

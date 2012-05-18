@@ -28,28 +28,9 @@ import re
 import time
 from heapq import nsmallest
 from operator import itemgetter
-from livestatus_query_evaluation import QueryEvaluation, CACHE_IMPOSSIBLE, CACHE_PROGRAM_STATIC, CACHE_GLOBAL_STATS, CACHE_GLOBAL_STATS_WITH_STATETYPE, CACHE_HOST_STATS, CACHE_SERVICE_STATS, CACHE_IRREVERSIBLE_HISTORY
+from livestatus_query_metainfo import LiveStatusQueryMetainfo, CACHE_IMPOSSIBLE, CACHE_PROGRAM_STATIC, CACHE_GLOBAL_STATS, CACHE_GLOBAL_STATS_WITH_STATETYPE, CACHE_HOST_STATS, CACHE_SERVICE_STATS, CACHE_IRREVERSIBLE_HISTORY
+from counter import Counter
 
-
-class Counter(dict):
-    """
-    This is a special kind of dictionary. It is used to store the usage number
-    for each key. For non-existing keys it simply returns 0.
-    Methods __init__ and __getitem__ are only needed until that happy day
-    when we finally get rid of Python 2.4
-    """
-    def __init__(self, default_factory=None, *a, **kw): 
-        dict.__init__(self, *a, **kw) 
- 
-    def __getitem__(self, key): 
-        try: 
-            return dict.__getitem__(self, key) 
-        except KeyError: 
-            self[key] = 0
-            return self.__missing__(key) 
-
-    def __missing__(self, key):
-        return 0
 
 class LFUCacheMiss(Exception):
     pass
@@ -148,7 +129,7 @@ class LiveStatusQueryCache(object):
 
     def get_cached_query(self, query):
         """
-        query is only the supplement part of the original query
+        query is only the metainfo part of the original query
         """
         if not self.enabled:
             return (False, False, [])
@@ -159,7 +140,7 @@ class LiveStatusQueryCache(object):
             return (query.cache_category != CACHE_IMPOSSIBLE, False, [])
 
     def cache_query(self, query, result):
-        """Puts the result of a livestatus query (supplement) into the cache."""
+        """Puts the result of a livestatus query (metainfo) into the cache."""
 
         if not self.enabled:
             return
