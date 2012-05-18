@@ -391,7 +391,7 @@ class LiveStatusQuery(object):
             items = gen_filtered(items, cs.filter_func)
         if self.limit:
             items = gen_limit(items, self.limit)
-        return (i for i in items)
+        return items
         # todo-list
         #  not possible in the moment, but perhaps with a proxy-function. something for next weekend...
         #  pool = multiprocessing.Pool(processes=4)

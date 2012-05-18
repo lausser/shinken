@@ -1256,6 +1256,8 @@ class PerfTest(ShinkenTest):
         requestelapsed = {}
         for page in pages:
             print "oage is", page
+            if page != "thruk_service_detail":
+                continue
             elapsed[page] = 0
             requestelapsed[page] = []
             for request in pages[page]:
@@ -1269,7 +1271,8 @@ class PerfTest(ShinkenTest):
                 tac = time.time()
                 elapsed[page] += (tac - tic)
                 requestelapsed[page].append(tac - tic)
-        for page in sorted(pages.keys()):
+        #for page in sorted(pages.keys()):
+        for page in ["thruk_service_detail"]:
             print "%-40s %-10.4f  %s" % (page, elapsed[page], ["%.3f" % f for f in requestelapsed[page]])
 
 

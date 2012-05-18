@@ -80,9 +80,13 @@ HINT_SINGLE_HOST_SERVICES = 2
 HINT_SINGLE_SERVICE = 3
 
 class LiveStatusQueryMetainfoFilterStack(LiveStatusStack):
-
+    """
+    This is a filterstack which produces a text representation of 
+    a and/or-filter-tree, similar to sql.
+    It can be used some time for text analysis.
+    """
     def __init__(self, *args, **kw):
-        self.type = 'sql'
+        self.type = 'text'
         self.__class__.__bases__[0].__init__(self, *args, **kw)
 
     def not_elements(self):
@@ -259,7 +263,6 @@ class LiveStatusQueryMetainfo(object):
             self.keyword_counter[keyword] += 1
         self.metainfo_filter_stack.and_elements(self.metainfo_filter_stack.qsize())
         self.flat_filter = self.metainfo_filter_stack.get_stack()
-        print "SUPPLEMENT FLATFILTER", self.flat_filter
 
     def split_command(self, line, splits=1):
         """Create a list from the words of a line"""
@@ -331,6 +334,8 @@ class LiveStatusQueryMetainfo(object):
             pass
             print "i cannot cache this", self
 
+        # Initial implementation only respects the = operator (~ may be an option in the future)
+        eq_filters = sorted([str(f[1]) for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
         if [f for f in self.structured_data if f[0] == 'Negate']:
             # HANDS OFF!!!!
             # This might be something like:
@@ -339,21 +344,21 @@ class LiveStatusQueryMetainfo(object):
             # absolutely wrong results.
             pass
         elif self.table == 'hosts':
-            # Do we have exactly 1 Filter, which is 'name'?
-            eq_filters = sorted([f[1] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
-            if eq_filters == ['name']:
+            # Do we have exactly 1 Filter, which is 'name' or 'host_name'?
+            if eq_filters == ['name'] or eq_filters == ['host_name']:
                 self.query_hints['target'] = HINT_SINGLE_HOST
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')][0]
+                # this helps: thruk_host_detail, thruk_host_status_detail, thruk_service_detail, nagvis_host_icon
         elif self.table == 'services':
-            eq_filters = sorted([f[1] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')])
             if eq_filters == ['host_name']:
                 # Do we have exactly 1 Filter, which is 'name'?
                 # In this case, we want the services of this single host
                 self.query_hints['target'] = HINT_SINGLE_HOST_SERVICES
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[2] == '=')][0]
-            elif eq_filters == ['description', 'host_name']:
+                # this helps: multisite_host_detail
+            elif eq_filters == ['description', 'host_name'] or eq_filters == ['service_description', 'host_name']:
                 # We want one specific service
                 self.query_hints['target'] = HINT_SINGLE_SERVICE
                 self.query_hints['host_name'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[1] == 'host_name' and f[2] == '=')][0]
                 self.query_hints['service_description'] = [f[3] for f in self.structured_data if (f[0] == 'Filter' and f[1] == 'description' and f[2] == '=')][0]
-            
+                # this helps: multisite_service_detail, thruk_service_detail, nagvis_service_icon
